@@ -1,0 +1,18 @@
+{
+  "$schema": "../Polish-Station-Website/node_modules/wrangler/config-schema.json",
+  "name": "polish-station-maintenance",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  // Catches proxied (orange cloud) hostnames on polishstation.lk. DNS-only (grey cloud) records bypass
+  // Cloudflare entirely and never reach this Worker. See src/index.js for how each host is handled.
+  "routes": [
+    { "pattern": "*.polishstation.lk/*", "zone_name": "polishstation.lk" }
+  ],
+  // Canonical hosts that are custom domains of another Worker, so the route can hand them straight over.
+  "services": [
+    { "binding": "SITE", "service": "polish-station-website" }
+  ],
+  "observability": { "enabled": true }
+}
