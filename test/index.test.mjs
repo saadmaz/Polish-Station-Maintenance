@@ -5,11 +5,20 @@ import worker from "../src/index.js";
 const H = "X-Polish-Station-Fallback";
 const html = { Accept: "text/html" };
 let passed = 0;
-async function t(name, fn) { await fn(); passed++; console.log("ok -", name); }
-const stubFetch = (impl) => { globalThis.fetch = impl; };
+async function t(name, fn) {
+  await fn();
+  passed++;
+  console.log("ok -", name);
+}
+const stubFetch = (impl) => {
+  globalThis.fetch = impl;
+};
 
 await t("typo host gets the 503 maintenance page", async () => {
-  const r = await worker.fetch(new Request("https://zz-typo-123.polishstation.lk/x", { headers: html }), {});
+  const r = await worker.fetch(
+    new Request("https://zz-typo-123.polishstation.lk/x", { headers: html }),
+    {},
+  );
   assert.equal(r.status, 503);
   assert.equal(r.headers.get(H), "unknown-host");
   assert.equal(r.headers.get("Retry-After"), "300");
@@ -19,21 +28,37 @@ await t("typo host gets the 503 maintenance page", async () => {
 });
 
 await t("JSON / API request gets a JSON 503", async () => {
-  const r = await worker.fetch(new Request("https://api-typo.polishstation.lk/v1", { method: "POST", headers: { Accept: "application/json" } }), {});
+  const r = await worker.fetch(
+    new Request("https://api-typo.polishstation.lk/v1", {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    }),
+    {},
+  );
   assert.equal(r.status, 503);
   assert.match(r.headers.get("Content-Type"), /application\/json/);
   assert.equal((await r.json()).error, "maintenance");
 });
 
 await t("HEAD gets a 503 with no body", async () => {
-  const r = await worker.fetch(new Request("https://nope.polishstation.lk/", { method: "HEAD" }), {});
+  const r = await worker.fetch(
+    new Request("https://nope.polishstation.lk/", { method: "HEAD" }),
+    {},
+  );
   assert.equal(r.status, 503);
   assert.equal(await r.text(), "");
 });
 
 await t("www.polishstation.lk passes through to its Worker", async () => {
-  const env = { SITE: { fetch: async (req) => new Response("site:" + new URL(req.url).pathname, { status: 200 }) } };
-  const r = await worker.fetch(new Request("https://www.polishstation.lk/services?x=1", { headers: html }), env);
+  const env = {
+    SITE: {
+      fetch: async (req) => new Response("site:" + new URL(req.url).pathname, { status: 200 }),
+    },
+  };
+  const r = await worker.fetch(
+    new Request("https://www.polishstation.lk/services?x=1", { headers: html }),
+    env,
+  );
   assert.equal(r.status, 200);
   assert.equal(await r.text(), "site:/services");
   assert.equal(r.headers.get(H), "service");
@@ -41,13 +66,25 @@ await t("www.polishstation.lk passes through to its Worker", async () => {
 
 await t("www.polishstation.lk keeps the site's own 404", async () => {
   const env = { SITE: { fetch: async () => new Response("nf", { status: 404 }) } };
-  const r = await worker.fetch(new Request("https://www.polishstation.lk/missing", { headers: html }), env);
+  const r = await worker.fetch(
+    new Request("https://www.polishstation.lk/missing", { headers: html }),
+    env,
+  );
   assert.equal(r.status, 404);
 });
 
 await t("www.polishstation.lk shows maintenance when its Worker throws", async () => {
-  const env = { SITE: { fetch: async () => { throw new Error("boom"); } } };
-  const r = await worker.fetch(new Request("https://www.polishstation.lk/", { headers: html }), env);
+  const env = {
+    SITE: {
+      fetch: async () => {
+        throw new Error("boom");
+      },
+    },
+  };
+  const r = await worker.fetch(
+    new Request("https://www.polishstation.lk/", { headers: html }),
+    env,
+  );
   assert.equal(r.status, 503);
   assert.equal(r.headers.get(H), "service-unreachable");
 });
